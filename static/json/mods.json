@@ -58,6 +58,14 @@
       "image": "/static/mod_icons/1796.png"
     },
     {
+      "label": "1804",
+      "value": "1804",
+      "tags": [
+        "historical",
+        "recent"
+      ]
+    },
+    {
       "label": "1812",
       "value": "1812",
       "tags": [
@@ -253,6 +261,15 @@
         "historical"
       ],
       "image": "/static/mod_icons/1892Redux.png"
+    },
+    {
+      "label": "1892: Bourbon Restoration",
+      "value": "1892 - Bourbon Restoration",
+      "tags": [
+        "historical",
+        "recent"
+      ],
+      "image": "/static/mod_icons/1892BR.png"
     },
     {
       "label": "1900",
@@ -1115,6 +1132,14 @@
       "image": "/static/mod_icons/1984b.png"
     },
     {
+      "label": "1984: Carterverse",
+      "value": "1984C",
+      "tags": [
+        "althist"
+      ],
+      "image": "/static/mod_icons/1984C.png"
+    },	
+    {
       "label": "1988b-Bush v Jackson",
       "value": "1988b",
       "tags": [
@@ -1905,6 +1930,14 @@
       "image": "/static/mod_icons/impeach.gif"
     },
     {
+      "label": "2020: Arnold Amendment",
+      "value": "2020ARNOLD",
+      "tags": [
+        "althist"
+      ],
+      "image": "/static/mod_icons/2020Arnold.png"
+    },
+    {
       "label": "American Carnage",
       "value": "American Carnage",
       "tags": [
@@ -2031,6 +2064,15 @@
       "tags": [
         "althist"
       ]
+    },
+    {
+      "label": "2024: Democracy’s Martyrdom",
+      "value": "2024-DM",
+      "tags": [
+        "althist",
+        "recent"
+      ],
+      "image": "/static/mod_icons/2024dm.png"
     },
     {
       "label": "The Divorce Trail: Astro v. Luuwuu (2023 April Fools Day)",
