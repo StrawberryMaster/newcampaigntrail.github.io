@@ -3,8 +3,10 @@ const customTab = document.getElementById('customTab');
 const normalTab = document.getElementById('normalTab');
 const customContent = document.getElementById('customContent');
 const normalContent = document.getElementById('normalContent');
+const selectElement = document.getElementById("modSelect");
+const widgetsContainer = document.getElementById("widgetsContainer");
 
-overlay.style.display = 'block';
+if (overlay) overlay.style.display = 'block';
 
 const viewNormal = () => {
     normalTab.classList.add('active');
@@ -24,8 +26,6 @@ customTab.addEventListener('click', viewCustom);
 normalTab.addEventListener('click', viewNormal);
 viewNormal();
 
-var selectElement = document.getElementById("modSelect");
-
 const toStaticPath = (path) => {
     if (typeof path !== "string") return path;
     return path.startsWith("/static/") ? `..${path}` : path;
@@ -34,82 +34,74 @@ const toStaticPath = (path) => {
 const getFavourites = () => JSON.parse(window.localStorage.getItem("favourites") || "[]");
 const setFavourites = (favs) => window.localStorage.setItem("favourites", JSON.stringify(favs));
 
-var id_clean = (id) => id.replaceAll(" ", "_").replaceAll("!", "-");
-
+window.id_clean = (id) => id.replaceAll(" ", "_").replaceAll("!", "-");
 const check_favourite = (val) => getFavourites().includes(val);
+
+const updateTagAttribute = (element, tag, add) => {
+    if (!element) return;
+    const tags = new Set((element.getAttribute("data-tags") || "").split(" ").filter(Boolean));
+    add ? tags.add(tag) : tags.delete(tag);
+    element.setAttribute("data-tags", Array.from(tags).join(" "));
+};
 
 const add_favourite = (val) => {
     const favs = getFavourites();
-    favs.push(val);
-    setFavourites(favs);
-
-    const id = id_clean(`#favourite_${val}_button`);
-    $(id).html("<font color='white'>Favourited</font>");
-
-    const n = $(id_clean(`#${val}_select_option`))[0];
-    if (n) {
-        n.setAttribute("data-tags", n.getAttribute("data-tags") + " favourite");
+    if (!favs.includes(val)) {
+        favs.push(val);
+        setFavourites(favs);
     }
 
+    const btn = document.querySelector(window.id_clean(`#favourite_${val}_button`));
+    if (btn) btn.innerHTML = "<font color='white'>Favourited</font>";
+
+    updateTagAttribute(document.getElementById(window.id_clean(`${val}_select_option`)), "favourite", true);
     reconstruct();
 };
 
 const remove_favourite = (val) => {
     const favs = getFavourites();
     const index = favs.indexOf(val);
-    if (index > -1) favs.splice(index, 1);
-    setFavourites(favs);
-
-    const id = id_clean(`#favourite_${val}_button`);
-    $(id).html("Favourite");
-
-    const n = $(id_clean(`#${val}_select_option`))[0];
-    if (n) {
-        n.setAttribute("data-tags",
-            n.getAttribute("data-tags").split(" ").filter(f => f !== "favourite").join(" ")
-        );
+    if (index > -1) {
+        favs.splice(index, 1);
+        setFavourites(favs);
     }
 
+    const btn = document.querySelector(window.id_clean(`#favourite_${val}_button`));
+    if (btn) btn.innerHTML = "Favourite";
+
+    updateTagAttribute(document.getElementById(window.id_clean(`${val}_select_option`)), "favourite", false);
     reconstruct();
 };
 
-const toggle_fav = (val) => {
+window.toggle_fav = (val) => {
     check_favourite(val) ? remove_favourite(val) : add_favourite(val);
+};
+
+window.copyModURL = (displayName) => {
+    const url = `${window.location.origin}${window.location.pathname}?modName=${displayName}`;
+    navigator.clipboard.writeText(url).catch(err => console.error('Failed to copy URL:', err));
 };
 
 const createOption = (opt) => {
     const option = document.createElement("option");
     option.value = opt.value;
     option.innerHTML = opt.label;
-    option.id = id_clean(`${opt.value}_select_option`);
+    option.id = window.id_clean(`${opt.value}_select_option`);
 
-    if (opt.tags) {
-        option.setAttribute("data-tags", opt.tags.join(" "));
-    }
-    if (opt.style) {
-        option.setAttribute("style", opt.style);
-    }
-    if (check_favourite(opt.value)) {
-        option.setAttribute("data-tags", (option.getAttribute("data-tags") || "") + " favourite");
-    }
+    if (opt.tags) option.setAttribute("data-tags", opt.tags.join(" "));
+    if (opt.style) option.setAttribute("style", opt.style);
+    if (check_favourite(opt.value)) updateTagAttribute(option, "favourite", true);
+    
     return option;
 };
 
 const reconstruct = () => {
-    const selection = $(`<select name="mod" id="modSelect222" onchange="modSelectChange()"></select>`);
-
-    for (const opt of options) {
-        selection.append(createOption(opt));
-    }
-
-    document.body.appendChild(selection[0]);
-    originalOptions = $("#modSelect222 option").clone();
-    $("#modSelect222").remove();
+    window.originalOptions = options.map(opt => createOption(opt));
 };
 
 function loadSync(path) {
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", path, false);
+    xhr.open("GET", path, false); 
     xhr.send();
 
     if (xhr.status === 200) {
@@ -122,257 +114,249 @@ function loadSync(path) {
     throw new Error('Request failed: ' + xhr.statusText);
 }
 
-let options;
-
+let options = [];
 try {
     options = loadSync("../static/json/mods.json");
 } catch (error) {
-    console.error('Error:', error);
-    options = [];
+    console.error('Error loading mods.json:', error);
 }
 
-const widgetsContainer = document.getElementById("widgetsContainer");
+const populateWidgets = () => {
+    widgetsContainer.innerHTML = '';
+    selectElement.innerHTML = '';
 
-for (const opt of options) {
-    const option = createOption(opt);
+    for (const opt of options) {
+        const option = createOption(opt);
+        
+        const widget = document.createElement("div");
+        widget.classList.add("widget");
+        widget.setAttribute("mod-value", opt.value);
 
-    const widget = document.createElement("div");
-    widget.classList.add("widget");
-    widget.setAttribute("mod-value", opt.value);
+        if (opt.style) {
+            widget.setAttribute("style", opt.style);
+            widget.style.border = "solid 2px";
+        }
 
-    if (opt.style) {
-        widget.setAttribute("style", opt.style);
-        widget.style.border = "solid 2px";
+        const favText = check_favourite(opt.value) ? "<font color='white'>Favourited</font>" : "Favourite";
+        const id = window.id_clean(`favourite_${opt.value}_button`);
+
+        widget.innerHTML = `
+            <div class="widget_url_icon tooltip_wrap" onclick="copyModURL('${encodeURIComponent(opt.value)}')">
+                🔗<span class="tooltip_text">Copies a permanent mod link.</span>
+            </div>
+            <img src='${toStaticPath(opt.image ?? "/static/mod_icons/default_placeholder.png")}' class='widget_image' alt="Mod Icon">
+            <br>
+            <h3>${opt.label}</h3>
+            <span>Tags: ${opt.tags.join(", ")}</span><br>
+            <button class="select-button" onclick="document.getElementById('modSelect').value='${opt.value}'; selection_click()">Select</button>
+            <button id='${id}' class="favourite-button" onclick="toggle_fav('${opt.value}')">${favText}</button>
+        `;
+
+        widgetsContainer.appendChild(widget);
+        selectElement.appendChild(option);
     }
-
-    const fav = check_favourite(opt.value) ? "<font color='white'>Favourited</font>" : "Favourite";
-    const id = id_clean(`favourite_${opt.value}_button`);
-
-    widget.innerHTML = `
-    <div class="widget_url_icon tooltip_wrap" onclick="copyModURL('${encodeURIComponent(opt.value)}')">
-      🔗
-      <span class="tooltip_text">Copies a permanent mod link.</span>
-    </div>
-    <img src='${toStaticPath(opt.image ?? "/static/mod_icons/default_placeholder.png")}' class='widget_image'></img>
-    <br>
-    <h3>${opt.label}</h3>
-    <span>Tags: ${opt.tags.join(", ")}</span><br>
-    <button class="select-button" onclick="$('#modSelect').val('${opt.value}');selection_click()">Select</button>
-    <button id='${id}' class="favourite-button" onclick="toggle_fav('${opt.value}')">${fav}</button>
-  `;
-
-    widgetsContainer.appendChild(widget);
-    selectElement.appendChild(option);
-}
-
-$("#mod_loader_overlay_block").click(() => {
-    $("#modLoadReveal").click();
-    changeFavicon("../static/34starcircle-2.png");
-    document.body.style.overflow = '';
-});
-
-var copyModURL = (displayName) => {
-    const url = `${window.location.origin}${window.location.pathname}?modName=${displayName}`;
-    navigator.clipboard.writeText(url).catch(err => console.log(err));
+    reconstruct();
 };
+populateWidgets();
 
-$("#customMenu").change(() => {
-    window.localStorage.setItem("mod_loader_cache", JSON.stringify({
-        code_one: $("#codeset1").val(),
-        code_two: $("#codeset2").val(),
-        ending_code: $("#codeset3").val()
-    }));
-});
-
-$("#submitMod").click(function () {
-    document.body.style.overflow = '';
-
-    if ($("#importfile")[0].value !== "") {
-        const [file] = document.querySelector('input[type=file]').files;
-        const reader = new FileReader();
-        reader.onload = (fle) => {
-            campaignTrail_temp.dagakotowaru = atob(encode(fle.target.result));
-        };
-        reader.readAsText(file);
-    }
-
-    if ($("#modSelect")[0].value === "other") {
-        const important_info = $("#codeset3")[0].value;
-        if (important_info !== "") {
-            campaignTrail_temp.multiple_endings = true;
-        }
-        if (!moddercheckeror) {
-            evaluate($("#codeset1")[0].value);
-            moddercheckeror = true;
-        }
-    } else {
-        const client = new XMLHttpRequest();
-        client.open('GET', "../static/mods/" + $("#modSelect")[0].value + "_init.html");
-        client.onreadystatechange = function () {
-            if (client.readyState !== XMLHttpRequest.DONE) return;
-            if (client.status >= 200 && client.status < 300) {
-                if (!e.readyToLoadCode1 && client.responseText.length > 0) {
-                    evaluate(client.responseText);
-                    e.readyToLoadCode1 = true;
-                }
-                return;
-            }
-            console.error("Failed to load mod init script:", client.status, $("#modSelect")[0].value);
-        };
-        client.send();
-        diff_mod = true;
-    }
-
-    $("#modloaddiv")[0].style.display = 'none';
-    $("#modLoadReveal")[0].style.display = 'none';
-    modded = true;
-});
-
-$('.tagCheckbox').on('change', () => { filterEntries(); selection_click(); });
-
-let selection_click = () => {
-    const selectedValue = $("#modSelect").val();
-    const widgets = Array.from(document.getElementsByClassName("widget"));
+window.selection_click = () => {
+    const selectedValue = selectElement.value;
+    const widgets = Array.from(document.querySelectorAll(".widget"));
     const widget = widgets.find(f => f.getAttribute("mod-value") === selectedValue);
 
     const icon = options.find(f => f.value === selectedValue)?.image;
-    changeFavicon(icon ? toStaticPath(icon) : "../static/34starcircle-2.png");
+    if (typeof changeFavicon === "function") {
+        changeFavicon(icon ? toStaticPath(icon) : "../static/34starcircle-2.png");
+    }
 
     widgets.forEach(f => f.classList.remove("selected_widget"));
     if (widget) widget.classList.add("selected_widget");
 };
 
-$("#modSelect").change(selection_click);
-selection_click();
+selectElement.addEventListener("change", window.selection_click);
+window.selection_click();
+
+document.querySelectorAll('.tagCheckbox').forEach(checkbox => {
+    checkbox.addEventListener('change', () => { 
+        if (typeof filterEntries === "function") filterEntries(); 
+        window.selection_click(); 
+    });
+});
+
+document.getElementById("mod_loader_overlay_block")?.addEventListener("click", () => {
+    document.getElementById("modLoadReveal")?.click();
+    if (typeof changeFavicon === "function") changeFavicon("../static/34starcircle-2.png");
+    document.body.style.overflow = '';
+});
+
+let fullscreen = false;
+document.getElementById("fullscreen_toggle")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    fullscreen = !fullscreen;
+    e.currentTarget.classList.toggle("down", fullscreen);
+    document.querySelector(".overlay_scr")?.classList.toggle("fullscreen", fullscreen);
+});
+
+document.getElementById("searchInput")?.addEventListener("keyup", (e) => {
+    if (typeof nct_stuff !== "undefined") {
+        nct_stuff.name_filter = e.target.value.trim().toLowerCase();
+        if (typeof filterEntries === "function") filterEntries();
+    }
+});
+
+document.getElementById("game_start")?.addEventListener("click", () => {
+    const modLoadReveal = document.getElementById("modLoadReveal");
+    const bigshotOn = document.getElementById("bigshotOn");
+    if (modLoadReveal) modLoadReveal.style.display = "none";
+    if (bigshotOn) bigshotOn.style.display = "none";
+});
+
+document.getElementById("sort")?.addEventListener("change", () => {
+    options.reverse();
+    populateWidgets();
+    if (typeof filterEntries === "function") filterEntries();
+    window.selection_click();
+});
 
 const getCustomLoader = () => JSON.parse(window.localStorage.getItem("custom_loader") || "[]");
 
 const rebuild_custom_loader = () => {
-    const area = $("#custom_loader_area");
-    area.html("");
+    const area = document.getElementById("custom_loader_area");
+    if (!area) return;
+    area.innerHTML = "";
 
     const new_selector = document.createElement("select");
     new_selector.id = "custom_select";
 
     const custom = getCustomLoader();
-
-    const null_opt = document.createElement("option");
-    null_opt.innerHTML = "Other";
-    null_opt.value = null;
-    new_selector.appendChild(null_opt);
+    new_selector.appendChild(new Option("Other", ""));
 
     for (const cu of custom) {
-        const option = document.createElement("option");
-        option.innerHTML = cu.name;
-        option.value = cu.name;
-        new_selector.appendChild(option);
+        new_selector.appendChild(new Option(cu.name, cu.name));
     }
 
-    area[0].appendChild(new_selector);
+    area.appendChild(new_selector);
 
     new_selector.addEventListener("change", (ev) => {
         ev.preventDefault();
         const selec = getCustomLoader().find(f => f.name === new_selector.value);
         if (selec) {
-            $("#codeset1").val(selec.code_one);
-            $("#codeset2").val(selec.code_two);
-            $("#codeset3").val(selec.ending_code);
+            document.getElementById("codeset1").value = selec.code_one;
+            document.getElementById("codeset2").value = selec.code_two;
+            document.getElementById("codeset3").value = selec.ending_code;
         }
-        $("#custom_loader_delete")[0].style.display = "";
+        document.getElementById("custom_loader_delete").style.display = "";
     });
 };
 
-$("#custom_loader_save").click(() => {
+document.getElementById("customMenu")?.addEventListener("change", () => {
+    window.localStorage.setItem("mod_loader_cache", JSON.stringify({
+        code_one: document.getElementById("codeset1").value,
+        code_two: document.getElementById("codeset2").value,
+        ending_code: document.getElementById("codeset3").value
+    }));
+});
+
+document.getElementById("custom_loader_save")?.addEventListener("click", () => {
     const custom = getCustomLoader();
     custom.push({
-        name: $("#custom_loader_input").val(),
-        code_one: $("#codeset1").val(),
-        code_two: $("#codeset2").val(),
-        ending_code: $("#codeset3").val()
+        name: document.getElementById("custom_loader_input").value,
+        code_one: document.getElementById("codeset1").value,
+        code_two: document.getElementById("codeset2").value,
+        ending_code: document.getElementById("codeset3").value
     });
     window.localStorage.setItem("custom_loader", JSON.stringify(custom));
     rebuild_custom_loader();
-    $("#custom_loader_delete")[0].style.display = "";
+    document.getElementById("custom_loader_delete").style.display = "";
 });
 
-rebuild_custom_loader();
-
-$("#custom_loader_delete").click(() => {
-    const selection = $("#custom_select").val();
+document.getElementById("custom_loader_delete")?.addEventListener("click", () => {
+    const selection = document.getElementById("custom_select").value;
     const filtered = getCustomLoader().filter(f => f.name !== selection);
     window.localStorage.setItem("custom_loader", JSON.stringify(filtered));
     rebuild_custom_loader();
 });
 
+rebuild_custom_loader();
+
 const cache = window.localStorage.getItem("mod_loader_cache");
 if (cache) {
     window.localStorage.removeItem("mod_loader_cache");
     const cached = JSON.parse(cache);
-    $("#codeset1").val(cached.code_one);
-    $("#codeset2").val(cached.code_two);
-    $("#codeset3").val(cached.ending_code);
+    document.getElementById("codeset1").value = cached.code_one || "";
+    document.getElementById("codeset2").value = cached.code_two || "";
+    document.getElementById("codeset3").value = cached.ending_code || "";
 }
 
-// very important 2000n stuff
+document.getElementById("submitMod")?.addEventListener("click", async () => {
+    document.body.style.overflow = '';
+
+    const importFile = document.getElementById("importfile");
+    if (importFile && importFile.value !== "") {
+        const file = importFile.files[0];
+        const reader = new FileReader();
+        reader.onload = (fle) => {
+            if (typeof campaignTrail_temp !== "undefined" && typeof encode === "function") {
+                campaignTrail_temp.dagakotowaru = atob(encode(fle.target.result));
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    const modSelectVal = selectElement.value;
+
+    if (modSelectVal === "other") {
+        const important_info = document.getElementById("codeset3").value;
+        if (important_info !== "" && typeof campaignTrail_temp !== "undefined") {
+            campaignTrail_temp.multiple_endings = true;
+        }
+        if (typeof window.moddercheckeror === "undefined" || !window.moddercheckeror) {
+            const codeOne = document.getElementById("codeset1").value;
+            if (codeOne) new Function(codeOne)(); 
+            window.moddercheckeror = true;
+        }
+    } else {
+        try {
+            const response = await fetch(`../static/mods/${modSelectVal}_init.html`);
+            if (response.ok) {
+                const text = await response.text();
+                if (typeof e !== "undefined" && !e.readyToLoadCode1 && text.length > 0) {
+                    new Function(text)(); 
+                    e.readyToLoadCode1 = true;
+                }
+            } else {
+                console.error("Failed to load mod init script:", response.status, modSelectVal);
+            }
+        } catch (error) {
+            console.error("Network error loading mod init script:", error);
+        }
+        window.diff_mod = true;
+    }
+
+    const modloaddiv = document.getElementById("modloaddiv");
+    const modLoadReveal = document.getElementById("modLoadReveal");
+    if (modloaddiv) modloaddiv.style.display = 'none';
+    if (modLoadReveal) modLoadReveal.style.display = 'none';
+    
+    window.modded = true;
+});
+
 const normals = ["2000N", "2000 Redux", "2000?", "2000 Normal", "Normalverse 2000", "Where am I?", "Don't think about 1993", "Normal", "2000N?", "2000"];
 let normal_mode = 0;
 
-let normal_adjust = () => {
-    const normal = Array.from(document.getElementsByClassName("widget")).find(f => f.getAttribute("mod-value") === "2000N");
-    if (!normal) return;
+const normal_adjust = () => {
+    const normalWidget = Array.from(document.querySelectorAll(".widget")).find(f => f.getAttribute("mod-value") === "2000N");
+    if (!normalWidget) return;
 
-    normal.children[2].style = `overflow: hidden;white-space: nowrap;text-overflow: clip;`;
-    normal.children[2].innerHTML = normals[normal_mode];
-    normal_mode = (normal_mode + 1) % normals.length;
+    const h3 = normalWidget.querySelector("h3");
+    if (h3) {
+        h3.style.cssText = `overflow: hidden; white-space: nowrap; text-overflow: clip;`;
+        h3.innerHTML = normals[normal_mode];
+        normal_mode = (normal_mode + 1) % normals.length;
+    }
 
-    if ($(".campaign_trail_start_emphasis").length > 0) {
+    if (document.querySelectorAll(".campaign_trail_start_emphasis").length > 0) {
         setTimeout(normal_adjust, Math.floor(Math.random() * 500));
     }
 };
-
 normal_adjust();
-
-$("#sort").change(() => {
-    options.reverse();
-
-    const wc = document.getElementById("widgetsContainer");
-    const widgetElements = Array.from(wc.getElementsByClassName("widget"));
-    widgetElements.reverse();
-    wc.innerHTML = '';
-
-    for (const widget of widgetElements) {
-        wc.appendChild(widget);
-    }
-
-    const sel = document.getElementById("modSelect");
-    sel.innerHTML = '';
-
-    for (const opt of options) {
-        sel.appendChild(createOption(opt));
-    }
-
-    reconstruct();
-    filterEntries();
-    selection_click();
-});
-
-let fullscreen = false;
-
-$("#fullscreen_toggle").click((e) => {
-    e.preventDefault();
-    fullscreen = !fullscreen;
-    $("#fullscreen_toggle")[0].classList.toggle("down", fullscreen);
-    $(".overlay_scr")[0].classList.toggle("fullscreen", fullscreen);
-});
-
-nct_stuff.name_filter = "";
-
-document.getElementById("searchInput").addEventListener("keyup", () => {
-    nct_stuff.name_filter = document.getElementById("searchInput").value.trim().toLowerCase();
-    filterEntries();
-});
-
-$("#game_start").click(() => {
-    $("#modLoadReveal")[0].style.display = "none";
-    $("#bigshotOn")[0].style.display = "none";
-});
