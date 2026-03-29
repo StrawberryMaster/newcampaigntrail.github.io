@@ -91,7 +91,7 @@ const createOption = (opt) => {
     if (opt.tags) option.setAttribute("data-tags", opt.tags.join(" "));
     if (opt.style) option.setAttribute("style", opt.style);
     if (check_favourite(opt.value)) updateTagAttribute(option, "favourite", true);
-    
+
     return option;
 };
 
@@ -101,7 +101,7 @@ const reconstruct = () => {
 
 function loadSync(path) {
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", path, false); 
+    xhr.open("GET", path, false);
     xhr.send();
 
     if (xhr.status === 200) {
@@ -127,7 +127,7 @@ const populateWidgets = () => {
 
     for (const opt of options) {
         const option = createOption(opt);
-        
+
         const widget = document.createElement("div");
         widget.classList.add("widget");
         widget.setAttribute("mod-value", opt.value);
@@ -177,9 +177,9 @@ selectElement.addEventListener("change", window.selection_click);
 window.selection_click();
 
 document.querySelectorAll('.tagCheckbox').forEach(checkbox => {
-    checkbox.addEventListener('change', () => { 
-        if (typeof filterEntries === "function") filterEntries(); 
-        window.selection_click(); 
+    checkbox.addEventListener('change', () => {
+        if (typeof filterEntries === "function") filterEntries();
+        window.selection_click();
     });
 });
 
@@ -241,9 +241,9 @@ const rebuild_custom_loader = () => {
         ev.preventDefault();
         const selec = getCustomLoader().find(f => f.name === new_selector.value);
         if (selec) {
-            document.getElementById("codeset1").value = selec.code_one;
-            document.getElementById("codeset2").value = selec.code_two;
-            document.getElementById("codeset3").value = selec.ending_code;
+            document.getElementById("codeset1").value = selec.code_one || "";
+            document.getElementById("codeset2").value = selec.code_two || "";
+            document.getElementById("codeset3").value = selec.ending_code || "";
         }
         document.getElementById("custom_loader_delete").style.display = "";
     });
@@ -288,6 +288,14 @@ if (cache) {
     document.getElementById("codeset3").value = cached.ending_code || "";
 }
 
+const executeModCodeGlobally = (code) => {
+    if (!code) return;
+    const script = document.createElement("script");
+    script.textContent = code;
+    document.body.appendChild(script);
+    script.remove();
+};
+
 document.getElementById("submitMod")?.addEventListener("click", async () => {
     document.body.style.overflow = '';
 
@@ -304,15 +312,23 @@ document.getElementById("submitMod")?.addEventListener("click", async () => {
     }
 
     const modSelectVal = selectElement.value;
+    window.campaignTrail_temp = window.campaignTrail_temp || {};
 
     if (modSelectVal === "other") {
         const important_info = document.getElementById("codeset3").value;
-        if (important_info !== "" && typeof campaignTrail_temp !== "undefined") {
-            campaignTrail_temp.multiple_endings = true;
+        const codeOne = document.getElementById("codeset1").value;
+        const codeTwo = document.getElementById("codeset2").value;
+
+        if (important_info !== "") {
+            window.campaignTrail_temp.multiple_endings = true;
         }
+
+        if (codeTwo) {
+            window.campaignTrail_temp.custom_code_2 = codeTwo;
+        }
+
         if (typeof window.moddercheckeror === "undefined" || !window.moddercheckeror) {
-            const codeOne = document.getElementById("codeset1").value;
-            if (codeOne) new Function(codeOne)(); 
+            executeModCodeGlobally(codeOne);
             window.moddercheckeror = true;
         }
     } else {
@@ -320,9 +336,11 @@ document.getElementById("submitMod")?.addEventListener("click", async () => {
             const response = await fetch(`../static/mods/${modSelectVal}_init.html`);
             if (response.ok) {
                 const text = await response.text();
-                if (typeof e !== "undefined" && !e.readyToLoadCode1 && text.length > 0) {
-                    new Function(text)(); 
-                    e.readyToLoadCode1 = true;
+                if (text.length > 0) {
+                    executeModCodeGlobally(text);
+                    if (typeof window.e !== "undefined") {
+                        window.e.readyToLoadCode1 = true;
+                    }
                 }
             } else {
                 console.error("Failed to load mod init script:", response.status, modSelectVal);
@@ -337,7 +355,7 @@ document.getElementById("submitMod")?.addEventListener("click", async () => {
     const modLoadReveal = document.getElementById("modLoadReveal");
     if (modloaddiv) modloaddiv.style.display = 'none';
     if (modLoadReveal) modLoadReveal.style.display = 'none';
-    
+
     window.modded = true;
 });
 
