@@ -4,7 +4,18 @@
 
 window.campaignTrail_temp = window.campaignTrail_temp || {};
 
-window.e ||= campaignTrail_temp;
+// link window.e dynamically so it never detaches
+//  from campaignTrail_temp if a mod reassigns it
+try {
+    Object.defineProperty(window, 'e', {
+        get: function() { return window.campaignTrail_temp; },
+        set: function(val) { window.campaignTrail_temp = val; },
+        configurable: true
+    });
+} catch (err) {
+    window.e = window.campaignTrail_temp;
+}
+
 window.e.skippingQuestion = false;
 
 /**
@@ -35,29 +46,22 @@ const PROPS = {
 };
 
 async function evalFromUrl(url, callback = null) {
-    const evalRes = await fetch(url);
-    const code = await evalRes.text();
-
-    executeMod(code, {
-        campaignTrail_temp,
-        window,
-        document,
-        $,
-        jQuery
-    });
-
+    try {
+        const evalRes = await fetch(url);
+        const code = await evalRes.text();
+        executeMod(code);
+    } catch (err) {
+        console.error(`Failed to load mod script from ${url}:`, err);
+    }
     callback?.();
 }
 
 function executeMod(code, context = {}) {
-    const { e, ...safeContext } = context;
-
-    const fn = new Function(
-        ...Object.keys(safeContext),
-        code
-    );
-
-    return fn(...Object.values(safeContext));
+    if (!code) return;
+    const script = document.createElement("script");
+    script.textContent = code;
+    document.body.appendChild(script);
+    script.remove();
 }
 
 let changeFontColour = () => { };

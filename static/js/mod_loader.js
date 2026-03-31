@@ -91,7 +91,7 @@ const createOption = (opt) => {
     if (opt.tags) option.setAttribute("data-tags", opt.tags.join(" "));
     if (opt.style) option.setAttribute("style", opt.style);
     if (check_favourite(opt.value)) updateTagAttribute(option, "favourite", true);
-
+    
     return option;
 };
 
@@ -101,7 +101,7 @@ const reconstruct = () => {
 
 function loadSync(path) {
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", path, false);
+    xhr.open("GET", path, false); 
     xhr.send();
 
     if (xhr.status === 200) {
@@ -127,7 +127,7 @@ const populateWidgets = () => {
 
     for (const opt of options) {
         const option = createOption(opt);
-
+        
         const widget = document.createElement("div");
         widget.classList.add("widget");
         widget.setAttribute("mod-value", opt.value);
@@ -177,9 +177,9 @@ selectElement.addEventListener("change", window.selection_click);
 window.selection_click();
 
 document.querySelectorAll('.tagCheckbox').forEach(checkbox => {
-    checkbox.addEventListener('change', () => {
-        if (typeof filterEntries === "function") filterEntries();
-        window.selection_click();
+    checkbox.addEventListener('change', () => { 
+        if (typeof filterEntries === "function") filterEntries(); 
+        window.selection_click(); 
     });
 });
 
@@ -213,7 +213,7 @@ document.getElementById("game_start")?.addEventListener("click", () => {
 
 document.getElementById("sort")?.addEventListener("change", () => {
     options.reverse();
-    populateWidgets();
+    populateWidgets(); 
     if (typeof filterEntries === "function") filterEntries();
     window.selection_click();
 });
@@ -355,7 +355,7 @@ document.getElementById("submitMod")?.addEventListener("click", async () => {
     const modLoadReveal = document.getElementById("modLoadReveal");
     if (modloaddiv) modloaddiv.style.display = 'none';
     if (modLoadReveal) modLoadReveal.style.display = 'none';
-
+    
     window.modded = true;
 });
 
